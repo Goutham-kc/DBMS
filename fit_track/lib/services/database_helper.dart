@@ -100,7 +100,7 @@ class DatabaseHelper {
     // Initial Data for Testing
     await db.insert('Owner', {
       'Owner_ID': 'OWN1', 
-      'Email': 'goutham.project@gmail.com', 
+      'Email': '240263@tkmce.ac.in', 
       'FName': 'Goutham', 
       'LName': 'KC'
     });

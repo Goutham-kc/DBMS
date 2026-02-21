@@ -2,7 +2,6 @@ plugins {
     id("com.android.application")
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
-    // Apply the Google Services plugin
     id("com.google.gms.google-services")
 }
 
@@ -20,16 +19,30 @@ android {
         jvmTarget = "1.8"
     }
 
+    // This block tells Android to use our shared debug.keystore
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     defaultConfig {
         applicationId = "com.example.fit_track"
-        minSdk = flutter.minSdkVersion
+        minSdk = 21
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
     buildTypes {
+        getByName("debug") {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         getByName("release") {
+            // For now, using debug config to allow testing
             signingConfig = signingConfigs.getByName("debug")
         }
     }
@@ -40,7 +53,6 @@ flutter {
 }
 
 dependencies {
-    // Import the Firebase BoM
     implementation(platform("com.google.firebase:firebase-bom:33.1.0"))
     implementation("com.google.firebase:firebase-auth")
 }

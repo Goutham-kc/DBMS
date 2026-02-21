@@ -12,3 +12,6 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+
+/app/google-services.json
+C:\Users\gouth\Projects\DBMS\fit_track\lib\firebase_options.dart
