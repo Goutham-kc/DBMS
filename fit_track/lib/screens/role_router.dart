@@ -24,44 +24,34 @@ class _RoleRouterState extends State<RoleRouter> {
 
     final dbHelper = DatabaseHelper.instance;
     
+    // Check SQL tables for the logged-in email
     bool isOwner = await dbHelper.isOwner(user.email!);
-    if (isOwner) {
-      _navigate(const TrainerPortal()); 
-      return;
-    }
-
-    bool isTrainer = await dbHelper.isTrainer(user.email!);
-    if (isTrainer) {
-      _navigate(const TrainerPortal());
-      return;
-    }
-
-    _navigate(MemberDashboard(
-      userName: user.displayName ?? "User", 
-      userEmail: user.email!
-    ));
-  }
-
-  void _navigate(Widget screen) {
+    
     if (!mounted) return;
-    Navigator.pushReplacement(
-      context, 
-      MaterialPageRoute(builder: (context) => screen)
-    );
+
+    if (isOwner) {
+      // If team member (Goutham, Vaishnav, etc.), go to Trainer/Admin portal
+      Navigator.pushReplacement(
+        context, 
+        MaterialPageRoute(builder: (context) => const TrainerPortal())
+      );
+    } else {
+      // If regular user, go to Member dashboard
+      Navigator.pushReplacement(
+        context, 
+        MaterialPageRoute(builder: (context) => MemberDashboard(
+          userName: user.displayName ?? "User", 
+          userEmail: user.email!
+        ))
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 20),
-            const Text("Syncing with Fit-Track Database..."),
-          ],
-        ),
+        child: CircularProgressIndicator(),
       ),
     );
   }

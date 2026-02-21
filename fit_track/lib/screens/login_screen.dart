@@ -1,37 +1,42 @@
 import 'package:flutter/material.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'role_router.dart';
+import 'package:flutter/foundation.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
 
   Future<void> _signInWithGoogle(BuildContext context) async {
-    final GoogleSignIn googleSignIn = GoogleSignIn();
-    
     try {
-      await googleSignIn.signOut(); 
-      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      final GoogleAuthProvider googleProvider = GoogleAuthProvider();
       
-      if (googleUser != null) {
-        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-        final AuthCredential credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
-          idToken: googleAuth.idToken,
-        );
+      // Forces the account picker to show up every time, 
+      // which often bypasses JS object type errors on web.
+      googleProvider.setCustomParameters({
+        'prompt': 'select_account'
+      });
 
-        await FirebaseAuth.instance.signInWithCredential(credential);
-        
-        if (context.mounted) {
-          Navigator.pushReplacement(
-            context, 
-            MaterialPageRoute(builder: (context) => const RoleRouter())
-          );
-        }
+      if (kIsWeb) {
+        // Use signInWithPopup specifically for Web to avoid redirection issues
+        await FirebaseAuth.instance.signInWithPopup(googleProvider);
+      } else {
+        await FirebaseAuth.instance.signInWithProvider(googleProvider);
       }
+
+      if (context.mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const RoleRouter()),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      // Catching the specific Firebase exception prevents the 'JavaScriptObject' mismatch
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Firebase Error: ${e.message}")),
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Authentication Failed: $e")),
+        SnackBar(content: Text("Unknown Error: $e")),
       );
     }
   }
