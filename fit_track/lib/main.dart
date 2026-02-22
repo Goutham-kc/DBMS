@@ -1,22 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/login_screen.dart';
 
 void main() async {
-  // Ensures Flutter framework is ready for platform-level communication
+  // 1. Ensure Flutter is ready
   WidgetsFlutterBinding.ensureInitialized();
 
-  // FIX: Check if Firebase is already initialized to prevent [core/duplicate-app]
-  try {
-    if (Firebase.apps.isEmpty) {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
-    }
-  } catch (e) {
-    // Firebase app already initialized, ignore
-  }
+  // 2. Initialize Supabase
+  // Note: Replace with your actual project details from Supabase Dashboard
+  await Supabase.initialize(
+    url: 'https://edywumickfnjctymacpn.supabase.co',
+    anonKey: 'sb_publishable_KBDvkiGp1wOHt1XCUtGfsQ_XB851AON',
+    authOptions: const FlutterAuthClientOptions(
+      authFlowType: AuthFlowType.pkce, // Secure flow for mobile/web
+    ),
+  );
 
   runApp(const FitTrackApp());
 }
@@ -27,13 +25,16 @@ class FitTrackApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Fit-Track',
+      title: 'Fit-Track DBMS',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primarySwatch: Colors.blue,
         useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blueAccent,
+          brightness: Brightness.light,
+        ),
       ),
-      // Starts the app at the Login Screen [cite: 1, 2, 4, 11, 16]
+      // Entry point of the application
       home: const LoginScreen(),
     );
   }
