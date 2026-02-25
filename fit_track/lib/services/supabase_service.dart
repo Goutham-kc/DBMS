@@ -76,6 +76,7 @@ class SupabaseService {
           'membership_role': role,
           'app_role': role,
           'role': role,
+          'trainer_id': null,
           'is_owner': false,
         })
         .eq('id', user.id)
