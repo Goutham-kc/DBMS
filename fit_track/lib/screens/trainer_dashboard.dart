@@ -11,32 +11,32 @@ class TrainerDashboard extends StatefulWidget {
 class _TrainerDashboardState extends State<TrainerDashboard> {
   final supabase = Supabase.instance.client;
 
-Future<void> _logout() async {
-  try {
-    final user = supabase.auth.currentUser;
-    if (user != null) {
-      // 1. Update DB role
-      await supabase
-          .from('profiles')
-          .update({'role': 'none'})
-          .eq('id', user.id);
-    }
-    
-    // 2. Sign out
-    await supabase.auth.signOut();
-    
-    if (mounted) {
-      // 3. WIPE THE STACK: Ensures a clean slate
-      Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
-    }
-  } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Logout Error: $e")),
-      );
+  Future<void> _logout() async {
+    try {
+      final user = supabase.auth.currentUser;
+      if (user != null) {
+        // 1. Update DB role
+        await supabase
+            .from('profiles')
+            .update({'role': 'none'})
+            .eq('id', user.id);
+      }
+      
+      // 2. Sign out
+      await supabase.auth.signOut();
+      
+      if (mounted) {
+        // 3. WIPE THE STACK: Ensures a clean slate
+        Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Logout Error: $e")),
+        );
+      }
     }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +58,7 @@ Future<void> _logout() async {
       body: FutureBuilder<Map<String, dynamic>>(
         future: supabase
             .from('profiles')
-            .select('gym_id, gyms(gym_name)')
+            .select('gym_id')
             .eq('id', user.id) // Removed the '!' for safety
             .single(),
         builder: (context, snapshot) {
@@ -73,7 +73,7 @@ Future<void> _logout() async {
 
           final data = snapshot.data;
           final String? gymId = data?['gym_id'];
-          final String gymName = data?['gyms']?['gym_name'] ?? "Unknown Gym";
+          final String gymName = "Gym";
 
           // 3. GYM ID CHECK: If trainer hasn't joined a gym yet
           if (gymId == null) {
