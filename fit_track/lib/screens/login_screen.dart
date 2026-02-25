@@ -1,38 +1,51 @@
 import 'package:flutter/material.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'role_router.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
-  Future<void> _signInWithGoogle(BuildContext context) async {
-    final GoogleSignIn googleSignIn = GoogleSignIn();
-    
-    try {
-      await googleSignIn.signOut(); 
-      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-      
-      if (googleUser != null) {
-        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-        final AuthCredential credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
-          idToken: googleAuth.idToken,
-        );
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
 
-        await FirebaseAuth.instance.signInWithCredential(credential);
-        
-        if (context.mounted) {
-          Navigator.pushReplacement(
-            context, 
-            MaterialPageRoute(builder: (context) => const RoleRouter())
-          );
-        }
+class _LoginScreenState extends State<LoginScreen> {
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Listen for Auth changes (helps if the redirect happens automatically)
+    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      if (data.session != null && mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => RoleRouter()),
+        );
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Authentication Failed: $e")),
+    });
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _isLoading = true);
+    try {
+      final supabase = Supabase.instance.client;
+      
+      // SQL/Supabase OAuth Sign-In
+      await supabase.auth.signInWithOAuth(
+        OAuthProvider.google,
+        // The redirectTo must match your Supabase URL Configuration
+        redirectTo: 'fit-track://login-callback',
       );
+
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Auth Error: ${e.message}")),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -44,38 +57,48 @@ class LoginScreen extends StatelessWidget {
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
-            colors: [Colors.blueAccent, Colors.blue],
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF448AFF), Color(0xFF2196F3)],
           ),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.fitness_center, size: 80, color: Colors.white),
+            const Icon(Icons.fitness_center, size: 100, color: Colors.white),
             const SizedBox(height: 20),
             const Text(
               "FIT-TRACK",
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 40,
+                fontSize: 42,
                 fontWeight: FontWeight.bold,
-                letterSpacing: 2,
+                letterSpacing: 3,
               ),
             ),
             const Text(
-              "EAT • SLEEP • GYM • REPEAT",
-              style: TextStyle(color: Colors.white70, fontSize: 12),
+              "DBMS RELATIONAL EDITION",
+              style: TextStyle(color: Colors.white70, fontSize: 14, letterSpacing: 1),
             ),
-            const SizedBox(height: 50),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-              ),
-              onPressed: () => _signInWithGoogle(context),
-              icon: const Icon(Icons.login),
-              label: const Text("Sign in with Google"),
-            ),
+            const SizedBox(height: 60),
+            _isLoading
+                ? const CircularProgressIndicator(color: Colors.white)
+                : ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 18),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      elevation: 5,
+                    ),
+                    onPressed: _handleGoogleSignIn,
+                    icon: const Icon(Icons.login),
+                    label: const Text(
+                      "Sign in with Google",
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ),
           ],
         ),
       ),
