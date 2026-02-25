@@ -11,100 +11,184 @@ class MemberDashboard extends StatefulWidget {
 class _MemberDashboardState extends State<MemberDashboard> {
   final supabase = Supabase.instance.client;
 
+  late final Stream<List<Map<String, dynamic>>> _profileStream;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final user = supabase.auth.currentUser;
+
+    // Stream current logged-in profile
+    _profileStream = supabase
+        .from('profiles')
+        .stream(primaryKey: ['id'])
+        .eq('id', user!.id);
+  }
+
+  // ================= LOGOUT =================
+
   Future<void> _logout() async {
     try {
       final user = supabase.auth.currentUser;
+
       if (user != null) {
-        // Soft reset role to 'none' but keep gym_id for history
         await supabase
             .from('profiles')
             .update({'role': 'none'})
             .eq('id', user.id);
       }
-      
+
       await supabase.auth.signOut();
-      
+
       if (mounted) {
-        // Wipe the navigation stack to ensure they land on the Auth Router
-        Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/',
+          (route) => false,
+        );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Logout Error: $e"), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text("Logout Error: $e"),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
   }
 
+  // ================= UI =================
+
   @override
   Widget build(BuildContext context) {
-    final user = supabase.auth.currentUser;
-
-    // 1. SAFE GUARD: Ensure user exists before trying to fetch data
-    if (user == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
     return Scaffold(
       appBar: AppBar(
         title: const Text("Member Hub"),
-        backgroundColor: Colors.blue.shade800, // Blue theme for members
+        backgroundColor: Colors.blue.shade800,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout), 
+            icon: const Icon(Icons.logout),
+            tooltip: "Logout",
             onPressed: _logout,
-            tooltip: "Logout & Switch Role",
-          ),
+          )
         ],
       ),
-      body: FutureBuilder<Map<String, dynamic>>(
-        future: supabase
-            .from('profiles')
-            .select('gym_id, gyms(gym_name)')
-            .eq('id', user.id)
-            .single(),
-        builder: (context, snapshot) {
-          // 2. HANDLE ERROR STATE
-          if (snapshot.hasError) {
-            return Center(child: Text("Error fetching gym: ${snapshot.error}"));
+
+      // -------- PROFILE STREAM --------
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: _profileStream,
+        builder: (context, profileSnapshot) {
+          if (profileSnapshot.connectionState ==
+              ConnectionState.waiting) {
+            return const Center(
+                child: CircularProgressIndicator());
           }
 
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+          if (!profileSnapshot.hasData ||
+              profileSnapshot.data!.isEmpty) {
+            return const Center(
+                child: Text("Profile not found."));
           }
 
-          final data = snapshot.data;
-          final String? gymId = data?['gym_id'];
-          final String gymName = data?['gyms']?['gym_name'] ?? "Your Gym";
+          final profile = profileSnapshot.data!.first;
+          final String? gymId = profile['gym_id'];
 
-          // 3. GYM ID CHECK
           if (gymId == null) {
-            return const Center(child: Text("You are not assigned to a gym yet."));
+            return const Center(
+              child: Text("You are not assigned to a gym yet."),
+            );
           }
 
-          return Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text("Training at $gymName", 
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                const Divider(),
-                const SizedBox(height: 20),
-                const Center(
-                  child: Text(
-                    "Welcome back! Check your workout plan or book a session with your trainer.",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ),
-                // Add more member-specific UI components here later
-              ],
-            ),
-          );
+          return _buildMembersList(gymId);
         },
       ),
+    );
+  }
+
+  // ================= MEMBERS STREAM =================
+
+  Widget _buildMembersList(String gymId) {
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: supabase
+          .from('profiles')
+          .stream(primaryKey: ['id'])
+          .eq('gym_id', gymId)
+          .eq('role', 'member'),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState ==
+            ConnectionState.waiting) {
+          return const Center(
+              child: CircularProgressIndicator());
+        }
+
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(
+            child: Text("No members found in this gym."),
+          );
+        }
+
+        final members = snapshot.data!;
+
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Gym Members (${members.length})",
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+              const SizedBox(height: 15),
+              const Divider(),
+
+              Expanded(
+                child: ListView.separated(
+                  itemCount: members.length,
+                  separatorBuilder: (_, __) =>
+                      const Divider(),
+                  itemBuilder: (context, index) {
+                    final member = members[index];
+
+                    final name =
+                        member['full_name'] ??
+                            'Unnamed Member';
+
+                    final avatar =
+                        member['avatar_url'];
+
+                    return ListTile(
+                      leading: avatar != null &&
+                              avatar.isNotEmpty
+                          ? CircleAvatar(
+                              backgroundImage:
+                                  NetworkImage(
+                                      avatar),
+                            )
+                          : CircleAvatar(
+                              child: Text(
+                                name.isNotEmpty
+                                    ? name[0]
+                                    : "?",
+                              ),
+                            ),
+                      title: Text(name),
+                      subtitle:
+                          Text(member['role'] ?? ''),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
