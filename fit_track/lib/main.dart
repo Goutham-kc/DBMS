@@ -24,7 +24,7 @@ class FitTrackApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp(                                                             
       title: 'Fit-Track DBMS',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
