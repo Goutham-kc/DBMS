@@ -19,15 +19,6 @@ android {
         jvmTarget = "1.8"
     }
 
-    // This block tells Android to use our shared debug.keystore
-    signingConfigs {
-        getByName("debug") {
-            storeFile = file("debug.keystore")
-            storePassword = "android"
-            keyAlias = "androiddebugkey"
-            keyPassword = "android"
-        }
-    }
 
     defaultConfig {
         applicationId = "com.example.fit_track"
