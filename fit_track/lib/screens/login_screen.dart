@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'role_router.dart';
@@ -12,36 +13,48 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
 
+  // FIX: Store the subscription so we can cancel it in dispose()
+  // to prevent memory leaks and setState-after-dispose errors.
+  late final StreamSubscription<AuthState> _authSub;
+
   @override
   void initState() {
     super.initState();
-    // Listen for Auth changes (helps if the redirect happens automatically)
-    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+    _authSub =
+        Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       if (data.session != null && mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => RoleRouter()),
+          MaterialPageRoute(builder: (_) => const RoleRouter()),
         );
       }
     });
   }
 
+  @override
+  void dispose() {
+    // FIX: Cancel the subscription to avoid leaks.
+    _authSub.cancel();
+    super.dispose();
+  }
+
   Future<void> _handleGoogleSignIn() async {
     setState(() => _isLoading = true);
     try {
-      final supabase = Supabase.instance.client;
-      
-      // SQL/Supabase OAuth Sign-In
-      await supabase.auth.signInWithOAuth(
+      await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.google,
-        // The redirectTo must match your Supabase URL Configuration
         redirectTo: 'fit-track://login-callback',
       );
-
     } on AuthException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Auth Error: ${e.message}")),
+          SnackBar(content: Text('Auth Error: ${e.message}')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unexpected error: $e')),
         );
       }
     } finally {
@@ -58,7 +71,7 @@ class _LoginScreenState extends State<LoginScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF448AFF), Color(0xFF2196F3)],
+            colors: [Color(0xFF448AFF), Color(0xFF1565C0)],
           ),
         ),
         child: Column(
@@ -67,7 +80,7 @@ class _LoginScreenState extends State<LoginScreen> {
             const Icon(Icons.fitness_center, size: 100, color: Colors.white),
             const SizedBox(height: 20),
             const Text(
-              "FIT-TRACK",
+              'FIT-TRACK',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 42,
@@ -76,8 +89,12 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
             const Text(
-              "DBMS RELATIONAL EDITION",
-              style: TextStyle(color: Colors.white70, fontSize: 14, letterSpacing: 1),
+              'YOUR GYM. YOUR DATA.',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 14,
+                letterSpacing: 1,
+              ),
             ),
             const SizedBox(height: 60),
             _isLoading
@@ -86,7 +103,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
                       foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 18),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 40, vertical: 18),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(30),
                       ),
@@ -95,8 +113,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: _handleGoogleSignIn,
                     icon: const Icon(Icons.login),
                     label: const Text(
-                      "Sign in with Google",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      'Sign in with Google',
+                      style: TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ),
           ],
