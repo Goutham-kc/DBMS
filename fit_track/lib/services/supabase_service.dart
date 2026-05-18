@@ -76,43 +76,47 @@ class SupabaseService {
   // SETUP OWNER  — creates gym with both join codes
   // ──────────────────────────────────────────────────────────────
 
-  Future<void> setupAsOwner(String uid) async {
-    final existingGym = await _supabase
-        .from('gyms')
-        .select('id')
-        .eq('owner_id', uid)
-        .maybeSingle();
+Future<void> setupAsOwner(String uid) async {
+  // ✅ Fetch the current user's email
+  final user = _supabase.auth.currentUser;
+  if (user == null) return;
 
-    String gymId;
+  final existingGym = await _supabase
+      .from('gyms')
+      .select('id')
+      .eq('owner_id', uid)
+      .maybeSingle();
 
-    if (existingGym != null) {
-      gymId = existingGym['id'] as String;
-    } else {
-      // Generate two short random codes
-      final trainerCode = _randomCode();
-      final memberCode = _randomCode();
+  String gymId;
 
-      final gymRes = await _supabase.from('gyms').insert({
-        'owner_id': uid,
-        'gym_name': 'New Fitness Center',
-        'trainer_code': trainerCode,
-        'member_code': memberCode,
-      }).select().single();
-      gymId = gymRes['id'] as String;
-    }
+  if (existingGym != null) {
+    gymId = existingGym['id'] as String;
+  } else {
+    final trainerCode = _randomCode();
+    final memberCode = _randomCode();
 
-    await _supabase.from('profiles').upsert(
-      {
-        'id': uid,
-        'gym_id': gymId,
-        'membership_role': 'owner',
-        'app_role': 'owner',
-        'role': 'owner',
-        'is_owner': true,
-      },
-      onConflict: 'id',
-    );
+    final gymRes = await _supabase.from('gyms').insert({
+      'owner_id': uid,
+      'gym_name': 'New Fitness Center',
+      'trainer_code': trainerCode,
+      'member_code': memberCode,
+    }).select().single();
+    gymId = gymRes['id'] as String;
   }
+
+  await _supabase.from('profiles').upsert(
+    {
+      'id': uid,
+      'email': user.email ?? '', // ✅ Add email here
+      'gym_id': gymId,
+      'membership_role': 'owner',
+      'app_role': 'owner',
+      'role': 'owner',
+      'is_owner': true,
+    },
+    onConflict: 'id',
+  );
+}
 
   // ──────────────────────────────────────────────────────────────
   // JOIN GYM — validates against role-specific code
